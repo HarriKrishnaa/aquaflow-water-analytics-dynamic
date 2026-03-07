@@ -118,6 +118,36 @@ export default function Dashboard() {
           </div>
         </div>
       </header>
+      
+      {/* Leak Alert Notification Banner */}
+      {leakUnits.length > 0 && (
+        <div style={{
+          backgroundColor: '#ff4444',
+          padding: '16px 20px',
+          margin: '0',
+          color: 'white',
+          fontWeight: 'bold',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          borderBottom: '3px solid #ff0000'
+        }}>
+          <span>
+            🚨 ALERT: {leakUnits.length} Active Leak{leakUnits.length > 1 ? 's' : ''} Detected! 
+            Immediate action required.
+          </span>
+          <a href="/admin" style={{
+            backgroundColor: 'white',
+            color: '#ff4444',
+            padding: '8px 16px',
+            borderRadius: '4px',
+            textDecoration: 'none',
+            fontWeight: 'bold'
+          }}>
+            View Admin Dashboard →
+          </a>
+        </div>
+      )}
 
       {/* Key Metrics */}
       <section className={styles.metrics}>
