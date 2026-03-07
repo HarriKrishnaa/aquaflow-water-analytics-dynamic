@@ -16,6 +16,7 @@ DYNAMODB_TABLE = 'water_alerts'
 LEAK_THRESHOLD = 50  # L/night
 NIGHT_WINDOW_HOURS = (2, 4)  # 2-4 AM
 SES_SENDER = 'noreply@aquaflow.com'
+BUILDING_MANAGER_EMAIL = 'harrikrishnaa@gmail.com'  # Receives all leak alerts
 
 def lambda_handler(event, context):
     """
@@ -242,7 +243,7 @@ def send_leak_alerts(leak_detections):
             # Send email via SES
             response = ses_client.send_email(
                 Source=SES_SENDER,
-                Destination={'ToAddresses': [owner_email]},
+                Destination={'ToAddresses': [owner_email, BUILDING_MANAGER_EMAIL]},},
                 Message={
                     'Subject': {'Data': subject},
                     'Body': {
