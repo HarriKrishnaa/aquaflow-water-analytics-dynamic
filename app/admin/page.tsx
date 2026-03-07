@@ -21,7 +21,7 @@ export default function AdminDashboard() {
 
   const fetchLeaks = async () => {
     try {
-      const response = await fetch(process.env.NEXT_PUBLIC_ALERTS_API_URL || '');
+      const response = await fetch(process.env.NEXT_PUBLIC_ALERTS_API_URL || 'https://00eifrlm0i.execute-api.us-east-1.amazonaws.com/alerts');
       const data = await response.json();
       setLeaks(data.filter((leak: LeakAlert) => leak.severity === 'LEAK'));
       setLoading(false);
