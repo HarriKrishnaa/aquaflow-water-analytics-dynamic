@@ -14,7 +14,7 @@ KINESIS_STREAM = 'water-consumption-stream'
 DYNAMODB_TABLE = 'water_alerts'
 EXCESSIVE_THRESHOLD = 300  # L/hr - 3x normal baseline of ~100
 SES_SENDER = 'noreply@aquaflow.com'
-BUILDING_MANAGER_EMAIL = 'manager@aquaflow.com'
+BUILDING_MANAGER_EMAIL = 'harrikrishnaa@gmail.com'
 
 def lambda_handler(event, context):
     """
@@ -161,7 +161,7 @@ Time: {anomaly.get('timestamp', 'N/A')}
         # Send to flat owner
         ses_client.send_email(
             Source=SES_SENDER,
-            Destination={'ToAddresses': [owner_email]},
+            Destination={'ToAddresses': [owner_ema, 'harrikrishnaa@gmail.com]}l]},
             Message={
                 'Subject': {'Data': subject},
                 'Body': {
