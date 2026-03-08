@@ -8,7 +8,7 @@ import requests
 # AWS SDK clients
 timestream_client = boto3.client('timestream-query')
 dynamodb_client = boto3.client('dynamodb')
-ses_client = boto3.client('ses')
+# ses_client = boto3.client('ses')
 
 # Configuration
 TIMESTREAM_DATABASE = 'water_analytics'
@@ -16,7 +16,7 @@ TIMESTREAM_TABLE = 'flat_consumption'
 DYNAMODB_TABLE = 'water_alerts'
 LEAK_THRESHOLD = 50  # L/night
 NIGHT_WINDOW_HOURS = (2, 4)  # 2-4 AM
-SES_SENDER = 'noreply@aquaflow.com'
+SES_SENDER = os.environ.get('SENDGRID_FROM_EMAIL', 'alerts@aquaflow.io')
 BUILDING_MANAGER_EMAIL = 'harrikrishnaa@gmail.com'  # Receives all leak alerts
 
 FLAT_OWNER_EMAILS = {
@@ -254,22 +254,30 @@ def send_leak_alerts(leak_detections):
             """
             
             # Send email via SES
-            response = ses_client.send_email(
-                Source=SES_SENDER,
-                Destination={'ToAddresses': [owner_email, BUILDING_MANAGER_EMAIL]},},
-                Message={
-                    'Subject': {'Data': subject},
-                    'Body': {
-                        'Html': {'Data': html_body},
-                        'Text': {'Data': text_body}
-                    }
+# Send email via SendGrid HTTP API
+            response = requests.post(
+                'https://api.sendgrid.com/v3/mail/send',
+                headers={
+                    'Authorization': f'Bearer {SENDGRID_API_KEY}',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'personalizations': [{
+                        'to': [{'email': owner_email}, {'email': BUILDING_MANAGER_EMAIL}]
+                    }],
+                    'from': {'email': SES_SENDER, 'name': 'AquaFlow Alerts'},
+                    'subject': subject,
+                    'content': [
+                        {'type': 'text/html', 'value': html_body},
+                        {'type': 'text/plain', 'value': text_body}
+                    ]
                 }
             )
             
             email_results.append({
                 'flatId': flat_id,
                 'recipient': owner_email,
-                'messageId': response['MessageId'],
+                'messageId': response.headers.get('X-Message-Id', 'sent'),
                 'status': 'SENT'
             })
             
