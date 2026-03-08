@@ -1,161 +1,126 @@
 import { NextRequest, NextResponse } from 'next/server';
+import nodemailer from 'nodemailer';
 
 interface EmailRequest {
   flatId: string;
-  nightFlow: number;
-  ownerEmail?: string;
+  nightflow: number;
+  ownerEmail: string;
   leakType?: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { flatId, nightFlow, ownerEmail, leakType } = (await request.json()) as EmailRequest;
-    
-    // Prepare email content
-    const htmlContent = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-    <h2 style="color: #ff4444; border-bottom: 3px solid #ff4444; padding-bottom: 10px;">🚨 Water Leak Alert - AquaFlow AI</h2>
-    
-    <p>Dear Flat Owner,</p>
-    <p style="font-size: 16px;">A potential water leak has been detected in your apartment <strong>during night hours</strong>.</p>
-    
-    <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ff4444;">
-    <p style="margin: 10px 0;"><strong>Flat ID:</strong> <span style="font-size: 18px; color: #ff4444;">${flatId}</span></p>
-    <p style="margin: 10px 0;"><strong>Night Flow (2-4 AM):</strong> <span style="font-size: 18px; color: #ff4444;">${nightFlow} Liters</span></p>
-    <p style="margin: 10px 0;"><strong>Alert Type:</strong> ${leakType || 'Abnormal Usage'}</p>
-    <p style="margin: 10px 0;"><strong>Normal Threshold:</strong> 50 Liters</p>
-    </div>
-    
-    <p style="color: #666; line-height: 1.6;">This exceeds the normal nighttime water usage. Please take immediate action:</p>
-    <ul style="color: #666; line-height: 1.8;">
-    <li>✅ Check for running taps or leaking fixtures</li>
-    <li>✅ Inspect bathroom and kitchen pipes</li>
-    <li>✅ Check washing machine and water heater</li>
-    <li>✅ Contact maintenance if needed immediately</li>
-    <li>✅ Log into your dashboard for detailed metrics</li>
-    </ul>
-    
-    <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
-    <p style="margin: 0;"><strong>Urgent:</strong> Unattended leaks can cause significant water waste and damage. Please address immediately.</p>
-    </div>
-    
-    <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 12px; line-height: 1.6;">
-    Best regards,<br/>
-    <strong>AquaFlow AI System</strong><br/>
-    Real-Time Water Analytics & Leak Detection<br/>
-    <em>Automated Alert System</em>
-    </p>
-    </div>
-    `;
-    
-    // Determine recipient email
-    const recipientEmail = ownerEmail || process.env.DEFAULT_ALERT_EMAIL || 'admin@aquaflow.local';
-    const sendgridApiKey = process.env.SENDGRID_API_KEY;
-    const sendgridFromEmail = process.env.SENDGRID_FROM_EMAIL || 'alerts@aquaflow.io';
-    
-    // Log the attempt
-    console.log(`[Email Service] Attempting to send alert for Flat ${flatId}`);
-    console.log(`[Email Service] Recipient: ${recipientEmail}`);
-    console.log(`[Email Service] From: ${sendgridFromEmail}`);
-    console.log(`[Email Service] API Key present: ${!!sendgridApiKey && sendgridApiKey !== 'placeholder'}`);
-    
-    // Check if SendGrid API key is available and valid
-    if (sendgridApiKey && sendgridApiKey !== 'placeholder' && sendgridApiKey.length > 10) {
-      try {
-        // Create AbortController for timeout
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
-        
-        // Use SendGrid API
-        const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${sendgridApiKey}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            personalizations: [
-              {
-                to: [{ email: recipientEmail }],
-                subject: `🚨 URGENT: Water Leak Alert - Flat ${flatId}`
-              }
-            ],
-            from: { email: sendgridFromEmail, name: 'AquaFlow Alerts' },
-            content: [
-              {
-                type: 'text/html',
-                value: htmlContent
-              }
-            ],
-            reply_to: { email: 'support@aquaflow.io' }
-          }),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        console.log(`[SendGrid] Response status: ${response.status}`);
-        
-        if (response.ok || response.status === 202) {
-          console.log(`[SendGrid] Email sent successfully for Flat ${flatId} to ${recipientEmail}`);
-          return NextResponse.json({
-            success: true,
-            message: `Email alert sent successfully to ${recipientEmail}`,
-            provider: 'SendGrid',
-            flatId,
-            timestamp: new Date().toISOString()
-          });
-        } else {
-          // Handle error responses from SendGrid
-          let errorText = 'Unknown error';
-          try {
-            errorText = await response.text();
-          } catch (e) {
-            errorText = `Failed to read error response: ${e}`;
-          }
-          
-          console.error(`[SendGrid] API error (${response.status}):`, errorText);
-          console.log('[SendGrid] Falling back to local logging due to SendGrid error');
-          // Don't throw - fall through to fallback
-        }
-      } catch (sendgridError) {
-        console.error('[SendGrid] Failed to send email:', sendgridError instanceof Error ? sendgridError.message : String(sendgridError));
-        console.log('[SendGrid] Falling back to local logging due to error');
-        // Continue to fallback
-      }
-    } else {
-      console.log('[Email Service] SendGrid API key not configured or invalid');
+    const { flatId, nightflow, ownerEmail, leakType } = (await request.json()) as EmailRequest;
+
+    // Validate environment variables
+    const emailUser = process.env.GMAIL_EMAIL;
+    const emailPass = process.env.GMAIL_APP_PASSWORD;
+    const defaultAlertEmail = process.env.DEFAULT_ALERT_EMAIL || 'harrikrishnaa@gmail.com';
+
+    if (!emailUser || !emailPass) {
+      console.error('Gmail credentials not configured in environment variables');
+      return NextResponse.json(
+        { ok: false, error: 'Email service not configured' },
+        { status: 500 }
+      );
     }
-    
-    // Fallback: Always return success with details (emails logged)
-    const fallbackData = {
-      to: recipientEmail,
-      subject: `🚨 URGENT: Water Leak Alert - Flat ${flatId}`,
-      flatId,
-      nightFlow,
-      leakType,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('[Fallback] Email details logged:', JSON.stringify(fallbackData));
-    
-    return NextResponse.json({
-      success: true,
-      message: `Alert for Flat ${flatId} has been processed. Email sent to ${recipientEmail}`,
-      provider: 'SendGrid',
-      data: fallbackData,
-      timestamp: new Date().toISOString()
+
+    // Create Gmail SMTP transporter
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: emailUser,
+        pass: emailPass,
+      },
     });
-    
-  } catch (error) {
-    console.error('[Error] Exception in send-email route:', error instanceof Error ? error.message : String(error));
-    console.error('[Error] Stack:', error instanceof Error ? error.stack : 'N/A');
-    
+
+    // Email content
+    const subject = `🚨 CRITICAL: Water Leak Detected - Flat ${flatId}`;
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 8px 8px 0 0; color: white; text-align: center;">
+          <h1 style="margin: 0; font-size: 28px;">🚨 WATER LEAK ALERT</h1>
+          <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">IMMEDIATE ACTION REQUIRED</p>
+        </div>
+        <div style="background: #f8f9fa; padding: 30px; border-bottom: 5px solid #ff6b6b;">
+          <h2 style="color: #ff6b6b; margin-top: 0;">Critical Alert for Flat: ${flatId}</h2>
+          <p style="font-size: 16px; color: #333; line-height: 1.6;">
+            A <strong>WATER LEAK</strong> has been detected in your apartment <strong>${flatId}</strong>.
+          </p>
+          <div style="background: white; border-left: 4px solid #ff6b6b; padding: 15px; margin: 20px 0; border-radius: 4px;">
+            <p><strong>⚠️ Detection Details:</strong></p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+              <li><strong>Night Flow Rate:</strong> ${nightflow}L (abnormally high)</li>
+              <li><strong>Leak Type:</strong> ${leakType || 'High night-time consumption'}</li>
+              <li><strong>Detected At:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</li>
+              <li><strong>Status:</strong> <span style="color: #ff6b6b; font-weight: bold;">ACTIVE</span></li>
+            </ul>
+          </div>
+          <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 20px 0;">
+            <p style="margin: 0;"><strong>⚡ Immediate Actions Required:</strong></p>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+              <li>Check your water pipes and fixtures immediately</li>
+              <li>Look for signs of water leakage in bathrooms, kitchen, and under sinks</li>
+              <li>Turn off the main water valve if leak is found</li>
+              <li>Contact a plumber immediately</li>
+              <li>Notify building management: support@aquaflow.io</li>
+            </ol>
+          </div>
+          <p style="color: #666; font-size: 14px; margin: 20px 0 0 0;">
+            <strong>💡 Tip:</strong> Monitor your consumption through the AquaFlow dashboard for real-time updates.
+          </p>
+        </div>
+        <div style="background: #f8f9fa; padding: 20px; border-top: 1px solid #ddd; text-align: center; color: #666; font-size: 12px;">
+          <p style="margin: 0;">
+            This is an automated alert from <strong>AquaFlow AI Water Analytics</strong>.
+          </p>
+          <p style="margin: 5px 0 0 0;">
+            For support, contact: <strong>support@aquaflow.io</strong>
+          </p>
+        </div>
+      </div>
+    `;
+
+    // Send email to the provided owner email
+    const mailOptions = {
+      from: `"AquaFlow Alerts" <${emailUser}>`,
+      to: ownerEmail || defaultAlertEmail,
+      subject: subject,
+      html: htmlContent,
+    };
+
+    console.log(`Sending email to ${ownerEmail || defaultAlertEmail} for flat ${flatId}`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', info.response);
+
+    // Also send to building manager
+    const managerMailOptions = {
+      from: `"AquaFlow Alerts" <${emailUser}>`,
+      to: defaultAlertEmail,
+      subject: `[ADMIN] Water Leak Alert - Flat ${flatId}`,
+      html: htmlContent,
+    };
+
+    await transporter.sendMail(managerMailOptions);
+    console.log('Admin email sent successfully');
+
     return NextResponse.json(
       {
-        success: false,
-        message: 'Failed to process email request',
-        error: error instanceof Error ? error.message : 'Unknown error'
+        ok: true,
+        message: `Email alert sent for leak in flat ${flatId}`,
+        recipient: ownerEmail || defaultAlertEmail,
+      },
+      { status: 200 }
+    );
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    console.error('Email sending failed:', errorMessage);
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: 'Failed to send email alert',
+        details: errorMessage,
       },
       { status: 500 }
     );
