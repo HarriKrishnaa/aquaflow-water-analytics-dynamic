@@ -10,45 +10,57 @@ interface EmailRequest {
 export async function POST(request: NextRequest) {
   try {
     const { flatId, nightFlow, ownerEmail, leakType } = (await request.json()) as EmailRequest;
-
+    
     // Prepare email content
     const htmlContent = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #ff4444;">🚨 Water Leak Alert - AquaFlow AI</h2>
-        <p>Dear Flat Owner,</p>
-        <p style="font-size: 16px; color: #333;">A potential water leak has been detected in your apartment.</p>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2 style="color: #ff4444; border-bottom: 3px solid #ff4444; padding-bottom: 10px;">🚨 Water Leak Alert - AquaFlow AI</h2>
         
-        <div style="background-color: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px 0;">
-          <p><strong>Flat ID:</strong> ${flatId}</p>
-          <p><strong>Night Flow (2-4 AM):</strong> ${nightFlow} Liters</p>
-          <p><strong>Alert Type:</strong> ${leakType || 'Abnormal Usage'}</p>
-          <p><strong>Threshold:</strong> 50 Liters (Normal)</p>
+        <p>Dear Flat Owner,</p>
+        <p style="font-size: 16px;">A potential water leak has been detected in your apartment <strong>during night hours</strong>.</p>
+        
+        <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ff4444;">
+          <p style="margin: 10px 0;"><strong>Flat ID:</strong> <span style="font-size: 18px; color: #ff4444;">${flatId}</span></p>
+          <p style="margin: 10px 0;"><strong>Night Flow (2-4 AM):</strong> <span style="font-size: 18px; color: #ff4444;">${nightFlow} Liters</span></p>
+          <p style="margin: 10px 0;"><strong>Alert Type:</strong> ${leakType || 'Abnormal Usage'}</p>
+          <p style="margin: 10px 0;"><strong>Normal Threshold:</strong> 50 Liters</p>
         </div>
         
-        <p style="color: #666;">This exceeds the normal nighttime water usage. Please:</p>
-        <ul style="color: #666;">
-          <li>Check for running taps or leaking fixtures</li>
-          <li>Inspect bathroom and kitchen pipes</li>
-          <li>Contact maintenance if needed</li>
-          <li>Log into your dashboard for detailed metrics</li>
+        <p style="color: #666; line-height: 1.6;">This exceeds the normal nighttime water usage. Please take immediate action:</p>
+        <ul style="color: #666; line-height: 1.8;">
+          <li>✅ Check for running taps or leaking fixtures</li>
+          <li>✅ Inspect bathroom and kitchen pipes</li>
+          <li>✅ Check washing machine and water heater</li>
+          <li>✅ Contact maintenance if needed immediately</li>
+          <li>✅ Log into your dashboard for detailed metrics</li>
         </ul>
         
-        <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 12px;">
-          Best regards,<br>
-          <strong>AquaFlow AI System</strong><br>
-          Real-Time Water Analytics & Leak Detection
+        <div style="background-color: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
+          <p style="margin: 0;"><strong>Urgent:</strong> Unattended leaks can cause significant water waste and damage. Please address immediately.</p>
+        </div>
+        
+        <p style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; color: #888; font-size: 12px; line-height: 1.6;">
+          Best regards,<br/>
+          <strong>AquaFlow AI System</strong><br/>
+          Real-Time Water Analytics & Leak Detection<br/>
+          <em>Automated Alert System</em>
         </p>
       </div>
     `;
-
-    const recipientEmail = ownerEmail || 'admin@aquaflow.local';
-
-    // Check if SendGrid API key is available
+    
+    // Determine recipient email
+    const recipientEmail = ownerEmail || process.env.DEFAULT_ALERT_EMAIL || 'admin@aquaflow.local';
     const sendgridApiKey = process.env.SENDGRID_API_KEY;
-
-    if (sendgridApiKey) {
-      // Use SendGrid for actual email sending
+    
+    // Log the attempt
+    console.log(`[Email Service] Attempting to send alert for Flat ${flatId}`);
+    console.log(`[Email Service] Recipient: ${recipientEmail}`);
+    console.log(`[Email Service] API Key present: ${!!sendgridApiKey && sendgridApiKey !== 'placeholder'}`);
+    
+    // Check if SendGrid API key is available and valid
+    if (sendgridApiKey && sendgridApiKey !== 'placeholder' && sendgridApiKey.length > 10) {
       try {
+        // Use SendGrid API
         const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
           method: 'POST',
           headers: {
@@ -59,10 +71,10 @@ export async function POST(request: NextRequest) {
             personalizations: [
               {
                 to: [{ email: recipientEmail }],
-                subject: `🚨 Water Leak Alert - Flat ${flatId}`
+                subject: `🚨 URGENT: Water Leak Alert - Flat ${flatId}`
               }
             ],
-            from: { email: 'alerts@aquaflow.io', name: 'AquaFlow Alerts' },
+            from: { email: process.env.SENDGRID_FROM_EMAIL || 'alerts@aquaflow.io', name: 'AquaFlow Alerts' },
             content: [
               {
                 type: 'text/html',
@@ -72,51 +84,54 @@ export async function POST(request: NextRequest) {
             reply_to: { email: 'support@aquaflow.io' }
           })
         });
-
-        if (response.ok) {
-          console.log(`✅ Email sent via SendGrid for Flat ${flatId}`);
+        
+        if (response.ok || response.status === 202) {
+          console.log(`[SendGrid] Email sent successfully for Flat ${flatId} to ${recipientEmail}`);
           return NextResponse.json({
             success: true,
             message: `Email alert sent successfully to ${recipientEmail}`,
-            provider: 'SendGrid'
+            provider: 'SendGrid',
+            flatId,
+            timestamp: new Date().toISOString()
           });
         } else {
-          const error = await response.text();
-          console.error('SendGrid error:', error);
-          throw new Error('SendGrid API error');
+          const errorText = await response.text();
+          console.error(`[SendGrid] API error (${response.status}):`, errorText);
+          throw new Error(`SendGrid API returned ${response.status}`);
         }
       } catch (sendgridError) {
-        console.error('SendGrid sending failed:', sendgridError);
-        // Fall back to mock if SendGrid fails
-        console.log(`⚠️ Falling back to mock email for Flat ${flatId}`);
+        console.error('[SendGrid] Failed to send email:', sendgridError);
+        // Continue to fallback
       }
+    } else {
+      console.log('[Email Service] SendGrid API key not configured or invalid');
     }
-
-    // Fallback: Mock email sending (for development/testing)
-    const emailData = {
+    
+    // Fallback: Return success with details (emails logged but not delivered)
+    const fallbackData = {
       to: recipientEmail,
-      subject: `🚨 Water Leak Alert - Flat ${flatId}`,
+      subject: `🚨 URGENT: Water Leak Alert - Flat ${flatId}`,
       flatId,
       nightFlow,
-      htmlContent,
+      leakType,
       timestamp: new Date().toISOString()
     };
-
-    console.log(`📧 Mock Email Log for Flat ${flatId}:`, emailData);
-
+    
+    console.log('[Fallback] Email details logged (not sent via external service):', fallbackData);
+    
     return NextResponse.json({
       success: true,
-      message: `Email alert processed for Flat ${flatId}`,
-      provider: 'MockEmail',
-      details: emailData
+      message: `Alert for Flat ${flatId} has been logged. Configure SENDGRID_API_KEY environment variable for email delivery.`,
+      provider: 'LogOnly',
+      data: fallbackData,
+      instruction: 'Set SENDGRID_API_KEY in Vercel environment variables for actual email delivery'
     });
-
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('[Error] Exception in send-email route:', error);
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Failed to send email',
+      {
+        success: false,
+        message: 'Failed to process email request',
         error: error instanceof Error ? error.message : 'Unknown error'
       },
       { status: 500 }
