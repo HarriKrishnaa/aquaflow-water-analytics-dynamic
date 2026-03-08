@@ -3,6 +3,7 @@ import boto3
 import os
 from datetime import datetime, timedelta
 from decimal import Decimal
+import requests
 
 # AWS SDK clients
 timestream_client = boto3.client('timestream-query')
@@ -17,6 +18,19 @@ LEAK_THRESHOLD = 50  # L/night
 NIGHT_WINDOW_HOURS = (2, 4)  # 2-4 AM
 SES_SENDER = 'noreply@aquaflow.com'
 BUILDING_MANAGER_EMAIL = 'harrikrishnaa@gmail.com'  # Receives all leak alerts
+
+FLAT_OWNER_EMAILS = {
+    'A-101': 'owner.a101@example.com',
+    'A-102': 'owner.a102@example.com',
+    'A-103': 'owner.a103@example.com',
+    'B-201': 'owner.b201@example.com',
+    'B-202': 'owner.b202@example.com',
+    'B-203': 'owner.b203@example.com',
+    'C-301': 'owner.c301@example.com',
+    'C-302': 'owner.c302@example.com'
+}
+
+SENDGRID_API_KEY = os.environ.get('SENDGRID_API_KEY', '')
 
 def lambda_handler(event, context):
     """
@@ -180,8 +194,7 @@ def get_flat_owner_email(flat_id):
         'C-302': 'owner-c302@example.com'
     }
     
-    return flat_owner_map.get(flat_id, 'manager@aquaflow.com')
-
+    return FLAT_OWNER_EMAILS.get(flat_id, BUILDING_MANAGER_EMAIL)
 def send_leak_alerts(leak_detections):
     """
     Send SES emails to flat owners about detected leaks
