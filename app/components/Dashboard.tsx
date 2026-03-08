@@ -53,6 +53,7 @@ export default function Dashboard() {
     { flatId: 'C-301', nightFlow: 11, status: 'normal', lastAlert: 'None' },
     { flatId: 'C-302', nightFlow: 18, status: 'normal', lastAlert: 'None' }
   ]);
+   const [showApartmentsModal, setShowApartmentsModal] = useState(false);
 
   // Fetch data from AWS backend
   useEffect(() => {
@@ -173,7 +174,7 @@ export default function Dashboard() {
             <span className={styles.trendWarning}>Lambda Triggered</span>
           </div>
         </div>
-        <div className={styles.metricCard}>
+        <div className={styles.metricCard} onClick={() => setShowApartmentsModal(true)} style={{ cursor: 'pointer' }}>
           <div className={styles.metricIcon}>🏢</div>
           <div className={styles.metricContent}>
             <h3>Total Apartments</h3>
@@ -270,6 +271,104 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
+      
+     {/* Apartments List Modal */}
+     {showApartmentsModal && (
+       <div style={{
+         position: 'fixed',
+         top: 0,
+         left: 0,
+         right: 0,
+         bottom: 0,
+         backgroundColor: 'rgba(0, 0, 0, 0.7)',
+         display: 'flex',
+         justifyContent: 'center',
+         alignItems: 'center',
+         zIndex: 1000
+       }}>
+         <div style={{
+           backgroundColor: '#0a0e27',
+           borderRadius: '8px',
+           border: '2px solid #00d4ff',
+           padding: '30px',
+           maxWidth: '600px',
+           width: '90%',
+           maxHeight: '80vh',
+           overflowY: 'auto',
+           boxShadow: '0 0 30px rgba(0, 212, 255, 0.3)'
+         }}>
+           <div style={{
+             display: 'flex',
+             justifyContent: 'space-between',
+             alignItems: 'center',
+             marginBottom: '20px'
+           }}>
+             <h2 style={{ color: '#00d4ff', margin: 0 }}>🏢 All Apartments ({liveMetrics.totalFlats})</h2>
+             <button
+               onClick={() => setShowApartmentsModal(false)}
+               style={{
+                 background: 'none',
+                 border: 'none',
+                 fontSize: '24px',
+                 color: '#00d4ff',
+                 cursor: 'pointer',
+                 padding: 0
+               }}
+             >
+               ✕
+             </button>
+           </div>
+           
+           <div style={{
+             display: 'grid',
+             gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+             gap: '15px'
+           }}>
+             {unitData.map((unit) => (
+               <div
+                 key={unit.flatId}
+                 style={{
+                   backgroundColor: unit.status === 'leak' ? '#ff4444' : unit.status === 'high' ? '#ff9500' : '#1a1a2e',
+                   border: '2px solid ' + (unit.status === 'leak' ? '#ff0000' : unit.status === 'high' ? '#ff6600' : '#00d4ff'),
+                   borderRadius: '8px',
+                   padding: '15px',
+                   textAlign: 'center',
+                   color: 'white'
+                 }}
+               >
+                 <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#00d4ff' }}>
+                   {unit.flatId}
+                 </div>
+                 <div style={{ fontSize: '12px', marginTop: '8px', opacity: 0.8 }}>
+                   {unit.nightFlow}L/night
+                 </div>
+                 <div style={{ fontSize: '11px', marginTop: '4px', color: unit.status === 'normal' ? '#00d4ff' : '#ffff00' }}>
+                   {unit.status === 'leak' ? '⚠️ LEAK' : unit.status === 'high' ? '⚠️ HIGH' : '✓ NORMAL'}
+                 </div>
+               </div>
+             ))}
+           </div>
+           
+           <button
+             onClick={() => setShowApartmentsModal(false)}
+             style={{
+               width: '100%',
+               marginTop: '20px',
+               padding: '12px',
+               backgroundColor: '#00d4ff',
+               color: '#0a0e27',
+               border: 'none',
+               borderRadius: '4px',
+               fontWeight: 'bold',
+               cursor: 'pointer',
+               fontSize: '16px'
+             }}
+           >
+             Close
+           </button>
+         </div>
+       </div>
+     )}
     </div>
   );
 }
