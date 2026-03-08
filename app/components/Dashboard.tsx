@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import styles from './Dashboard.module.css';
@@ -31,7 +30,8 @@ export default function Dashboard() {
     trend: '+12%',
     anomalyCount: 0,
     leakDetections: 0,
-    timestamp: new Date().toLocaleTimeString()
+    timestamp: new Date().toLocaleTimeString(),
+    totalFlats: 8
   });
 
   const [chartData, setChartData] = useState<ChartDataPoint[]>([
@@ -71,9 +71,9 @@ export default function Dashboard() {
             totalConsumption: data.totalConsumption || 713,
             anomalyCount: data.anomalyCount || 0,
             leakDetections: data.leakDetections || 0,
+            totalFlats: data.totalFlats || unitData.length,
             timestamp: new Date().toLocaleTimeString()
           }));
-
           if (data.chartData) setChartData(data.chartData);
           if (data.unitData) setUnitData(data.unitData);
         }
@@ -81,7 +81,6 @@ export default function Dashboard() {
         console.log('Using mock data - Backend not yet configured');
       }
     };
-
     fetchAWSData();
     const interval = setInterval(fetchAWSData, 5000);
     return () => clearInterval(interval);
@@ -99,7 +98,6 @@ export default function Dashboard() {
         timestamp: new Date().toLocaleTimeString()
       }));
     }, 3000);
-
     return () => clearInterval(timer);
   }, []);
 
@@ -159,7 +157,6 @@ export default function Dashboard() {
             <span className={styles.trendPositive}>{liveMetrics.trend} vs last hour</span>
           </div>
         </div>
-
         <div className={styles.metricCard + ' ' + styles.alert}>
           <div className={styles.metricIcon}>🚨</div>
           <div className={styles.metricContent}>
@@ -168,7 +165,6 @@ export default function Dashboard() {
             <span className={styles.trendNegative}>ACTION REQUIRED</span>
           </div>
         </div>
-
         <div className={styles.metricCard}>
           <div className={styles.metricIcon}>⚠️</div>
           <div className={styles.metricContent}>
@@ -177,7 +173,14 @@ export default function Dashboard() {
             <span className={styles.trendWarning}>Lambda Triggered</span>
           </div>
         </div>
-
+        <div className={styles.metricCard}>
+          <div className={styles.metricIcon}>🏢</div>
+          <div className={styles.metricContent}>
+            <h3>Total Apartments</h3>
+            <p className={styles.metricValue}>{liveMetrics.totalFlats}</p>
+            <span className={styles.trendPositive}>All Units Connected</span>
+          </div>
+        </div>
         <div className={styles.metricCard}>
           <div className={styles.metricIcon}>📊</div>
           <div className={styles.metricContent}>
@@ -204,7 +207,6 @@ export default function Dashboard() {
             </LineChart>
           </ResponsiveContainer>
         </div>
-
         <div className={styles.chartContainer}>
           <h2>🏢 Unit-wise Distribution</h2>
           <ResponsiveContainer width="100%" height={300}>
@@ -216,43 +218,6 @@ export default function Dashboard() {
               <Bar dataKey="nightFlow" fill="#00d4ff" name="Night Flow (L)" />
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </section>
-
-      {/* AWS Integration Details */}
-      <section className={styles.awsIntegration}>
-        <h2>🔌 AWS Data Pipeline Status</h2>
-        <div className={styles.pipelineGrid}>
-          <div className={styles.pipelineItem}>
-            <h4>IoT Core</h4>
-            <p>Ingesting smart meter data</p>
-            <span className={styles.badge + ' ' + styles.active}>ACTIVE</span>
-          </div>
-          <div className={styles.pipelineItem}>
-            <h4>Kinesis Data Stream</h4>
-            <p>Real-time stream processing</p>
-            <span className={styles.badge + ' ' + styles.active}>ACTIVE</span>
-          </div>
-          <div className={styles.pipelineItem}>
-            <h4>Timestream Database</h4>
-            <p>Time-series data storage</p>
-            <span className={styles.badge + ' ' + styles.active}>ACTIVE</span>
-          </div>
-          <div className={styles.pipelineItem}>
-            <h4>DynamoDB</h4>
-            <p>Anomaly alerts & thresholds</p>
-            <span className={styles.badge + ' ' + styles.active}>ACTIVE</span>
-          </div>
-          <div className={styles.pipelineItem}>
-            <h4>Lambda (3AM Detector)</h4>
-            <p>Daily leak signature analysis</p>
-            <span className={styles.badge + ' ' + styles.active}>ACTIVE</span>
-          </div>
-          <div className={styles.pipelineItem}>
-            <h4>SES Notifications</h4>
-            <p>Email alerts to owners & managers</p>
-            <span className={styles.badge + ' ' + styles.active}>READY</span>
-          </div>
         </div>
       </section>
 
@@ -273,7 +238,6 @@ export default function Dashboard() {
               ))}
             </ul>
           </div>
-
           <div className={styles.insightCard}>
             <h3>High Usage Units</h3>
             <p className={styles.largeNumber}>{highConsumption.length}</p>
@@ -287,7 +251,6 @@ export default function Dashboard() {
               ))}
             </ul>
           </div>
-
           <div className={styles.insightCard}>
             <h3>Cost Impact Analysis</h3>
             <div className={styles.costMetrics}>
@@ -305,20 +268,6 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Backend Configuration */}
-      <section className={styles.config}>
-        <h2>⚙️ Backend Configuration</h2>
-        <div className={styles.configBox}>
-          <p><strong>Current Status:</strong> Ready for AWS Backend Integration</p>
-          <p><strong>API Endpoint:</strong> /api/water-metrics</p>
-          <p><strong>Lambda Function:</strong> aquaflow-leak-detector-3am</p>
-          <p><strong>Timestream Table:</strong> water_analytics.flat_consumption</p>
-          <p><strong>DynamoDB Table:</strong> water_alerts</p>
-          <p><strong>Update Interval:</strong> 5 seconds (real-time)</p>
-          <p><strong>3AM Leak Detection:</strong> Daily via CloudWatch Events + Lambda</p>
         </div>
       </section>
     </div>
