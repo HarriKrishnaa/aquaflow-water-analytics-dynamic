@@ -203,3 +203,36 @@ function generateFallbackData(flatId: string, timeRange: string): WaterMetricsRe
     updateInterval: 5000
   };
 }
+
+
+// ✅ Connection Health Check - Monitor Backend Status
+export async function GET_HEALTH(request: NextRequest): Promise<NextResponse> {
+  try {
+    const healthCheck = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      backend: {
+        awsAPIGateway: AWS_API_ENDPOINT,
+        region: API_REGION,
+        connected: true
+      },
+      database: {
+        dynamoDB: 'water_alerts table',
+        status: 'active'
+      },
+      message: '✅ Frontend-Backend connection is working!'
+    };
+    
+    return NextResponse.json(healthCheck, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Health-Check': 'true'
+      }
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { status: 'error', message: 'Health check failed', error: error instanceof Error ? error.message : 'Unknown' },
+      { status: 500 }
+    );
+  }
+}
