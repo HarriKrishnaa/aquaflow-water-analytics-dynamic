@@ -205,34 +205,8 @@ function generateFallbackData(flatId: string, timeRange: string): WaterMetricsRe
 }
 
 
-// ✅ Connection Health Check - Monitor Backend Status
-export async function GET_HEALTH(request: NextRequest): Promise<NextResponse> {
-  try {
-    const healthCheck = {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      backend: {
-        awsAPIGateway: AWS_API_ENDPOINT,
-        region: API_REGION,
-        connected: true
-      },
-      database: {
-        dynamoDB: 'water_alerts table',
-        status: 'active'
-      },
-      message: '✅ Frontend-Backend connection is working!'
-    };
-    
-    return NextResponse.json(healthCheck, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Health-Check': 'true'
-      }
-    });
-  } catch (error) {
-    return NextResponse.json(
-      { status: 'error', message: 'Health check failed', error: error instanceof Error ? error.message : 'Unknown' },
-      { status: 500 }
-    );
-  }
-}
+
+
+// ✅ Health check query: Use GET /api/water-metrics to monitor connection status
+// Response includes: totalConsumption, anomalyCount, leakDetections, AWS pipeline status
+// If connection fails, fallback data is automatically provided for UI stability
